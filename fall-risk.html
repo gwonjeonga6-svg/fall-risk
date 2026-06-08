@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>낙상 위험도 평가</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --border: #e2e6ea;
+      --text: #1a202c;
+      --text2: #4a5568;
+      --text3: #a0aec0;
+      --blue: #3182ce;
+      --blue-light: #ebf8ff;
+      --red: #c53030;
+      --red-light: #fff5f5;
+      --red-mid: #fc8181;
+      --orange: #c05621;
+      --orange-light: #fffaf0;
+      --green: #276749;
+      --green-light: #f0fff4;
+      --yellow: #b7791f;
+      --yellow-light: #fffff0;
+    }
+    body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .header { background: #1a365d; color: white; padding: 1rem 1.5rem; display: flex; align-items: center; gap: 12px; }
+    .header-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .header h1 { font-size: 17px; font-weight: 700; }
+    .header p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+    .container { max-width: 700px; margin: 0 auto; padding: 1.25rem 1rem; }
+
+    /* 환자 정보 */
+    .patient-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .section-title { font-size: 13px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .section-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--blue); border-radius: 2px; }
+    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .input-group { display: flex; flex-direction: column; gap: 4px; }
+    .input-group label { font-size: 12px; color: var(--text2); font-weight: 500; }
+    .input-group input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; }
+    .input-group input:focus { border-color: var(--blue); }
+
+    /* 평가 항목 */
+    .eval-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .item-list { display: flex; flex-direction: column; gap: 6px; }
+    .item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; user-select: none; }
+    .item:hover { border-color: #bee3f8; background: #f7faff; }
+    .item.checked { border-color: var(--red-mid); background: var(--red-light); }
+    .item-left { display: flex; align-items: center; gap: 10px; }
+    .item-icon { font-size: 20px; width: 32px; text-align: center; }
+    .item-info {}
+    .item-name { font-size: 14px; font-weight: 500; }
+    .item-desc { font-size: 12px; color: var(--text3); margin-top: 1px; }
+    .item-right { display: flex; align-items: center; gap: 8px; }
+    .item-score { font-size: 12px; font-weight: 700; color: var(--text3); background: var(--bg); padding: 3px 8px; border-radius: 99px; }
+    .item.checked .item-score { background: #fed7d7; color: var(--red); }
+    .checkbox { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+    .item.checked .checkbox { background: var(--red); border-color: var(--red); color: white; }
+
+    /* PTT 특별 입력 */
+    .ptt-row { display: flex; gap: 8px; }
+    .ptt-btn { flex: 1; padding: 10px; border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; background: white; transition: all 0.15s; }
+    .ptt-btn.active-normal { border-color: var(--green); background: var(--green-light); color: var(--green); }
+    .ptt-btn.active-abnormal { border-color: var(--red-mid); background: var(--red-light); color: var(--red); }
+
+    /* 결과 */
+    .result-card { border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; border: 2px solid; }
+    .result-card.low { background: var(--green-light); border-color: #9ae6b4; }
+    .result-card.mid { background: var(--yellow-light); border-color: #f6e05e; }
+    .result-card.high { background: var(--red-light); border-color: var(--red-mid); }
+    .result-card.very-high { background: #fff5f5; border-color: var(--red); }
+    .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .result-label { font-size: 18px; font-weight: 700; }
+    .result-label.low { color: var(--green); }
+    .result-label.mid { color: var(--yellow); }
+    .result-label.high { color: var(--orange); }
+    .result-label.very-high { color: var(--red); }
+    .result-score { font-size: 28px; font-weight: 700; }
+    .result-score.low { color: var(--green); }
+    .result-score.mid { color: var(--yellow); }
+    .result-score.high { color: var(--orange); }
+    .result-score.very-high { color: var(--red); }
+    .result-desc { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
+
+    /* 단독이동금지 배너 */
+    .ban-banner { background: #1a365d; color: white; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .ban-icon { font-size: 28px; }
+    .ban-text { font-size: 15px; font-weight: 700; }
+    .ban-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+    /* 중재 목록 */
+    .intervention-title { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 8px; }
+    .intervention-list { display: flex; flex-direction: column; gap: 6px; }
+    .intervention-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
+    .intervention-item::before { content: '✓'; font-weight: 700; color: var(--green); flex-shrink: 0; margin-top: 1px; }
+
+    /* 버튼 */
+    .btn-row { display: flex; gap: 8px; margin-top: 1rem; }
+    .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+    .btn-primary { background: #1a365d; color: white; }
+    .btn-primary:hover { background: #2a4a7f; }
+    .btn-secondary { background: var(--border); color: var(--text2); }
+    .btn-secondary:hover { background: #d1d5db; }
+
+    /* 인쇄 */
+    @media print {
+      .btn-row { display: none; }
+      body { background: white; }
+      .header { background: #1a365d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">⚠️</div>
+  <div>
+    <h1>낙상 위험도 평가</h1>
+    <p>단독 이동 금지 대상 선별 도구</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 환자 정보 -->
+  <div class="patient-card">
+    <div class="section-title">환자 정보</div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>환자명</label>
+        <input type="text" id="pt-name" placeholder="홍길동" />
+      </div>
+      <div class="input-group">
+        <label>등록번호</label>
+        <input type="text" id="pt-id" placeholder="12345678" />
+      </div>
+      <div class="input-group">
+        <label>나이</label>
+        <input type="number" id="pt-age" placeholder="65" oninput="evaluate()" />
+      </div>
+      <div class="input-group">
+        <label>병동/병실</label>
+        <input type="text" id="pt-ward" placeholder="3W-301" />
+      </div>
+    </div>
+  </div>
+
+  <!-- 검사결과 기반 -->
+  <div class="eval-card">
+    <div class="section-title">검사결과 기반</div>
+
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px">PTT (Prothrombin Time)</div>
+      <div class="ptt-row">
+        <button class="ptt-btn" id="ptt-normal" onclick="setPTT('normal')">정상</button>
+        <button class="ptt-btn" id="ptt-abnormal" onclick="setPTT('abnormal')">연장 (비정상) ⚠️</button>
+      </div>
+    </div>
+
+    <div class="item-list">
+      <div class="item" onclick="toggle(this)" data-score="2">
+        <div class="item-left">
+          <div class="item-icon">🩸</div>
+          <div class="item-info">
+            <div class="item-name">빈혈 (Hb 저하)</div>
+            <div class="item-desc">Hb 8 g/dL 미만 또는 임상적으로 유의한 빈혈</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+2점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+      <div class="item" onclick="toggle(this)" data-score="2">
+        <div class="item-left">
+          <div class="item-icon">⚗️</div>
+          <div class="item-info">
+            <div class="item-name">전해질 이상</div>
+            <div class="item-desc">Na &lt;130 또는 &gt;150 / K &lt;3.0 또는 &gt;5.5</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+2점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 진단/치료 기반 -->
+  <div class="eval-card">
+    <div class="section-title">진단 및 치료 기반</div>
+    <div class="item-list">
+      <div class="item" onclick="toggle(this)" data-score="3">
+        <div class="item-left">
+          <div class="item-icon">🫘</div>
+          <div class="item-info">
+            <div class="item-name">혈액투석 환자</div>
+            <div class="item-desc">HD, CRRT 포함 — 낙상 시 치명률 매우 높음</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+3점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+      <div class="item" onclick="toggle(this)" data-score="3">
+        <div class="item-left">
+          <div class="item-icon">💊</div>
+          <div class="item-info">
+            <div class="item-name">항응고제 복용</div>
+            <div class="item-desc">Warfarin, NOAC, Heparin 등</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+3점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+      <div class="item" onclick="toggle(this)" data-score="2">
+        <div class="item-left">
+          <div class="item-icon">🧠</div>
+          <div class="item-info">
+            <div class="item-name">뇌졸중 / 파킨슨병</div>
+            <div class="item-desc">신경계 질환으로 인한 운동장애</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+2점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+      <div class="item" onclick="toggle(this)" data-score="2">
+        <div class="item-left">
+          <div class="item-icon">💉</div>
+          <div class="item-info">
+            <div class="item-name">수면제 / 진정제 투여</div>
+            <div class="item-desc">Benzodiazepine, Zolpidem 등</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+2점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 임상 소견 -->
+  <div class="eval-card">
+    <div class="section-title">임상 소견</div>
+    <div class="item-list">
+      <div class="item" onclick="toggle(this)" data-score="1" data-age-item="true">
+        <div class="item-left">
+          <div class="item-icon">👴</div>
+          <div class="item-info">
+            <div class="item-name">고령 (70세 이상)</div>
+            <div class="item-desc">나이 입력 시 자동 반영</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+1점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+      <div class="item" onclick="toggle(this)" data-score="2">
+        <div class="item-left">
+          <div class="item-icon">🚶</div>
+          <div class="item-info">
+            <div class="item-name">보행 불안정</div>
+            <div class="item-desc">휘청거림, 보조기구 필요, 낙상 과거력</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+2점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+      <div class="item" onclick="toggle(this)" data-score="2">
+        <div class="item-left">
+          <div class="item-icon">💭</div>
+          <div class="item-info">
+            <div class="item-name">인지기능 저하</div>
+            <div class="item-desc">치매, 섬망, 지남력 장애</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+2점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+      <div class="item" onclick="toggle(this)" data-score="1">
+        <div class="item-left">
+          <div class="item-icon">📉</div>
+          <div class="item-info">
+            <div class="item-name">기립성 저혈압</div>
+            <div class="item-desc">기립 시 수축기혈압 20mmHg 이상 감소</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-score">+1점</div>
+          <div class="checkbox">✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과 -->
+  <div id="result-area"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="resetAll()">초기화</button>
+    <button class="btn btn-primary" onclick="window.print()">🖨️ 출력</button>
+  </div>
+
+</div>
+
+<script>
+let pttStatus = null;
+
+function setPTT(status) {
+  pttStatus = status;
+  document.getElementById('ptt-normal').className = 'ptt-btn' + (status==='normal' ? ' active-normal' : '');
+  document.getElementById('ptt-abnormal').className = 'ptt-btn' + (status==='abnormal' ? ' active-abnormal' : '');
+  evaluate();
+}
+
+function toggle(el) {
+  if (el.dataset.ageItem) return; // 나이 항목은 자동
+  el.classList.toggle('checked');
+  evaluate();
+}
+
+function evaluate() {
+  // 나이 자동 체크
+  const age = parseInt(document.getElementById('pt-age').value) || 0;
+  const ageItem = document.querySelector('[data-age-item]');
+  if (age >= 70) ageItem.classList.add('checked');
+  else ageItem.classList.remove('checked');
+
+  // 점수 계산
+  let score = 0;
+  document.querySelectorAll('.item.checked').forEach(el => {
+    score += parseInt(el.dataset.score || 0);
+  });
+  if (pttStatus === 'abnormal') score += 3;
+
+  // 단독이동금지 조건 (투석 or 항응고제 or PTT연장 or 점수 5이상)
+  const hdChecked = [...document.querySelectorAll('.item.checked')].some(el => el.querySelector('.item-name').textContent.includes('혈액투석'));
+  const acChecked = [...document.querySelectorAll('.item.checked')].some(el => el.querySelector('.item-name').textContent.includes('항응고제'));
+  const banAlways = hdChecked || acChecked || pttStatus === 'abnormal';
+  const isBanned = banAlways || score >= 5;
+
+  // 등급
+  let grade, gradeClass, gradeDesc;
+  if (score <= 2) { grade = '저위험'; gradeClass = 'low'; gradeDesc = '표준 낙상예방 활동을 유지합니다.'; }
+  else if (score <= 4) { grade = '중위험'; gradeClass = 'mid'; gradeDesc = '낙상 예방 중재를 강화합니다.'; }
+  else if (score <= 7) { grade = '고위험'; gradeClass = 'high'; gradeDesc = '집중적 낙상 예방 중재가 필요합니다.'; }
+  else { grade = '매우 고위험'; gradeClass = 'very-high'; gradeDesc = '즉각적인 낙상 예방 조치 및 보호자 동반이 필요합니다.'; }
+
+  // 중재 목록
+  const baseInterventions = [
+    '낙상 위험 팔찌 착용 확인',
+    '침대 난간 올림 및 잠금 확인',
+    '콜벨 손이 닿는 곳에 위치',
+    '미끄럼 방지 양말 착용',
+    '환경 정리 (바닥 물기, 장애물 제거)',
+  ];
+  const highInterventions = [
+    '보호자 또는 간호사 동반 이동',
+    '이동 전 반드시 간호사 호출 교육',
+    '1시간마다 라운딩 강화',
+  ];
+  const banInterventions = [
+    '단독 이동 절대 금지 — 반드시 간호사 동반',
+    '침대/화장실 이동 시 간호사 호출 필수',
+    '보호자에게 단독 이동 금지 사유 설명 및 서면 동의',
+    '병실 문 및 침대에 단독이동금지 표시 부착',
+  ];
+
+  let interventions = [...baseInterventions];
+  if (score >= 3) interventions = [...interventions, ...highInterventions];
+
+  const now = new Date();
+  const timeStr = now.getFullYear() + '.' + String(now.getMonth()+1).padStart(2,'0') + '.' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  const resultArea = document.getElementById('result-area');
+  resultArea.innerHTML = `
+    <div class="result-card ${gradeClass}">
+      <div class="result-header">
+        <div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:2px">평가 결과</div>
+          <div class="result-label ${gradeClass}">${grade}</div>
+        </div>
+        <div class="result-score ${gradeClass}">${score}점</div>
+      </div>
+      <div class="result-desc">${gradeDesc}</div>
+
+      ${isBanned ? `
+      <div class="ban-banner">
+        <div class="ban-icon">🚫</div>
+        <div>
+          <div class="ban-text">단독 이동 금지 대상</div>
+          <div class="ban-sub">${banAlways ? '출혈 고위험 환자 (투석/항응고제/PTT연장) — 점수와 무관하게 적용' : '고위험 점수 (5점 이상)'}</div>
+        </div>
+      </div>` : ''}
+
+      <div class="intervention-title">권고 중재사항</div>
+      <div class="intervention-list">
+        ${(isBanned ? [...banInterventions, ...interventions] : interventions).map(i => `<div class="intervention-item">${i}</div>`).join('')}
+      </div>
+
+      <div style="margin-top:12px;font-size:11px;color:var(--text3);text-align:right">평가일시: ${timeStr}</div>
+    </div>
+  `;
+}
+
+function resetAll() {
+  document.querySelectorAll('.item.checked').forEach(el => el.classList.remove('checked'));
+  pttStatus = null;
+  document.getElementById('ptt-normal').className = 'ptt-btn';
+  document.getElementById('ptt-abnormal').className = 'ptt-btn';
+  document.getElementById('pt-name').value = '';
+  document.getElementById('pt-id').value = '';
+  document.getElementById('pt-age').value = '';
+  document.getElementById('pt-ward').value = '';
+  document.getElementById('result-area').innerHTML = '';
+}
+
+// 초기 평가
+evaluate();
+</script>
+</body>
+</html>
